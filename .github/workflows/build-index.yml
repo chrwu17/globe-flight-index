@@ -68,4 +68,5 @@ jobs:
 
           Built via workflow_dispatch.
           Shards: ${SHARDS}"
+          git pull --rebase || true
           git push
