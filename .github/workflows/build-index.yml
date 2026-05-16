@@ -1,0 +1,67 @@
+name: Build Index
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date to index (YYYY-MM-DD)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout skytrack (builder code)
+        uses: actions/checkout@v4
+        with:
+          repository: chrwu17/Skytrack
+          path: skytrack
+
+      - name: Checkout globe-flight-index (output)
+        uses: actions/checkout@v4
+        with:
+          repository: chrwu17/globe-flight-index
+          path: index-repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: cd skytrack && npm install
+
+      - name: Run builder
+        run: |
+          cd skytrack
+          npx tsx scripts/build-globe-index.ts --date "${{ inputs.date }}"
+
+      - name: Copy output to index repo
+        run: |
+          if [ -d "skytrack/globe-index/${{ inputs.date }}" ]; then
+            cp -r "skytrack/globe-index/${{ inputs.date }}" "index-repo/"
+          else
+            echo "ERROR: Builder produced no output for ${{ inputs.date }}"
+            exit 1
+          fi
+
+      - name: Commit and push
+        run: |
+          cd index-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${{ inputs.date }}/"
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          SHARDS=$(find "${{ inputs.date }}" -name '*.json.gz' -not -name '_*' | wc -l)
+          git commit -m "Add index for ${{ inputs.date }}
+
+          Built via workflow_dispatch.
+          Shards: ${SHARDS}"
+          git push
