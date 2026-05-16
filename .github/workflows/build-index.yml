@@ -19,6 +19,7 @@ jobs:
         with:
           repository: chrwu17/Skytrack
           path: skytrack
+          token: ${{ secrets.SKYTRACK_PAT }}
 
       - name: Checkout globe-flight-index (output)
         uses: actions/checkout@v4
